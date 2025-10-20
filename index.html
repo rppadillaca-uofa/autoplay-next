@@ -78,16 +78,18 @@
 <div id="end">put the phone down, it is over</div>
 
 <script>
-  const CUT = 27_000;
+  // Per clip durations in milliseconds
+  // Clips 1 to 3 = 34s, clips 4 and 5 = 37s
+  const durations = [34_000, 34_000, 34_000, 37_000, 37_000];
 
-  // Helper for pretty numbers like 12.4K
+  // Pretty numbers like 12.4K
   const fmt = n => {
     if (n < 1000) return String(n);
     if (n < 1_000_000) return (Math.round(n/100)/10).toFixed(1).replace(/\.0$/,'') + 'K';
     return (Math.round(n/100_000)/10).toFixed(1).replace(/\.0$/,'') + 'M';
   };
 
-  // Set your starting counts here
+  // Set starting counts per clip
   const clips = [
     {src:"https://dl.dropboxusercontent.com/scl/fi/ci3jsb6eor610xxgnkk14/01-rewrite.mp4.mp4?rlkey=2hodyoqum98fkz5a7txafcbt0&st=zxc2h67u", caption:"Rewrite", likes: 12400, comments: 312},
     {src:"https://dl.dropboxusercontent.com/scl/fi/tbrm6pgpbnl3d7xlka603/02-loud-thoughts.mp4.mp4?rlkey=fse205d4h2gktepzvxyz6zqis&st=5mh9rfqu", caption:"Loud Thoughts", likes: 9800, comments: 201},
@@ -131,7 +133,7 @@
     const baseComments = clips[i].comments;
     likeCountEl.textContent = fmt(baseLikes + (liked[i] ? 1 : 0));
     commentCountEl.textContent = fmt(baseComments);
-    shareCountEl.textContent = ''; // empty on purpose, decorative only
+    shareCountEl.textContent = ''; // decorative only
     likeBtn.classList.toggle('liked', liked[i]);
   }
 
@@ -150,10 +152,11 @@
       caption.textContent = clips[i].caption;
       updateCounts();
       clearTimeout(timer);
+      const dur = durations[i];
       if (i === clips.length - 1) {
-        timer = setTimeout(showEnd, CUT);
+        timer = setTimeout(showEnd, dur);
       } else {
-        timer = setTimeout(()=>setClip(i+1), CUT);
+        timer = setTimeout(()=>setClip(i+1), dur);
       }
     };
   }
