@@ -15,7 +15,6 @@
     background:#000;color:#fff;font:600 18px system-ui;letter-spacing:.2px;cursor:pointer
   }
 
-  /* Feed-style UI */
   #ui{
     position:fixed;right:12px;bottom:88px;display:flex;flex-direction:column;gap:16px;
     z-index:3
@@ -34,12 +33,7 @@
     background:linear-gradient(0deg,rgba(0,0,0,.72),rgba(0,0,0,0));
     font:500 14px/1.4 system-ui
   }
-  #meta{
-    position:fixed;left:12px;bottom:108px;color:#fff;z-index:2;
-    font:600 13px/1 system-ui;opacity:.95;text-shadow:0 1px 2px rgba(0,0,0,.5)
-  }
 
-  /* End screen */
   #end{
     position:fixed;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.85);
     color:#fff;font:700 22px/1.3 system-ui;letter-spacing:.3px;text-align:center;
@@ -52,29 +46,22 @@
   <video id="v" playsinline preload="auto" x-webkit-airplay="deny"></video>
 </div>
 
-<!-- UI -->
 <div id="ui">
   <div class="btn" id="likeBtn" title="Like">
     <svg viewBox="0 0 48 48" aria-hidden="true">
       <path d="M34.6 6c-4.2 0-7.9 2.1-10.6 5.4C21.3 8.1 17.6 6 13.4 6 7.6 6 3 10.6 3 16.4c0 11.1 19 22.5 19 22.5s19-11.4 19-22.5C41 10.6 36.4 6 30.6 6z"/>
     </svg>
   </div>
-
   <div class="btn" aria-hidden="true" title="Comments">
     <svg viewBox="0 0 24 24"><path d="M21 6.5a3.5 3.5 0 0 0-3.5-3.5h-11A3.5 3.5 0 0 0 3 6.5v6A3.5 3.5 0 0 0 6.5 16H8v3l3-3h6.5A3.5 3.5 0 0 0 21 12.5v-6z"/></svg>
   </div>
-
   <div class="btn" aria-hidden="true" title="Share">
     <svg viewBox="0 0 24 24"><path d="M18 8a3 3 0 1 0-2.82-4H15a3 3 0 0 0 .18 1.02L7.91 9.2A3 3 0 0 0 6 8.5a3 3 0 1 0 1.95 5.25l7.18 4.15A3 3 0 1 0 16 20a3 3 0 0 0-.18-1.02l-7.18-4.15A3 3 0 0 0 9 12.5c0-.22-.02-.44-.07-.64l7.16-4.13c.26.17.56.28.88.34A3 3 0 0 0 18 8z"/></svg>
   </div>
 </div>
 
-<div id="meta">@autoplay.next</div>
 <div id="caption" role="status" aria-live="polite"></div>
-
 <div id="start">Tap to begin</div>
-
-<!-- End screen -->
 <div id="end">put the phone down, it is over</div>
 
 <script>
@@ -96,7 +83,6 @@
 
   let i = 0, timer = null, finished = false;
 
-  // prevent scroll
   const block = e => e.preventDefault();
   ['touchmove','wheel','gesturestart'].forEach(evt=>{
     window.addEventListener(evt, block, {passive:false});
@@ -111,7 +97,6 @@
     caption.textContent = '';
   }
 
-  // load and play a clip
   function setClip(idx){
     if (finished) return;
     i = idx % clips.length;
@@ -126,21 +111,14 @@
       v.play().catch(()=>{});
       caption.textContent = clips[i].caption;
       clearTimeout(timer);
-      // if this is the last clip, end instead of looping
       if (i === clips.length - 1) {
         timer = setTimeout(showEnd, CUT);
       } else {
-        timer = setTimeout(nextClip, CUT);
+        timer = setTimeout(()=>setClip(i+1), CUT);
       }
     };
   }
 
-  function nextClip(){
-    if (finished) return;
-    setClip(i+1);
-  }
-
-  // resume if user returns to tab
   document.addEventListener('visibilitychange', ()=>{
     if(!document.hidden && !finished){
       v.muted = false;
@@ -149,7 +127,6 @@
     }
   });
 
-  // start after a user gesture to allow audio
   start.addEventListener('click', ()=>{
     start.style.display='none';
     v.muted = false;
@@ -157,7 +134,6 @@
     setClip(0);
   });
 
-  // like toggle
   likeBtn.addEventListener('click', ()=>{
     if (finished) return;
     likeBtn.classList.toggle('liked');
