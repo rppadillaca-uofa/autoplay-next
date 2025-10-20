@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Autoplay Next</title>
+<style>
+  html,body{margin:0;height:100%;background:#000;overflow:hidden}
+  #stage{position:fixed;inset:0;display:grid;place-items:center}
+  video{width:100%;height:100%;object-fit:cover}
+  .slide{animation:slideIn 320ms ease}
+  @keyframes slideIn{from{transform:translateY(100%)}to{transform:translateY(0)}}
+  #start {
+    position:fixed;inset:0;display:grid;place-items:center;
+    background:#000; color:#fff; font:600 18px system-ui; letter-spacing:.2px;
+    cursor:pointer
+  }
+  #hud {
+    position:fixed;left:12px;right:12px;top:12px;display:flex;gap:6px;z-index:2
+  }
+  .bar {flex:1;height:3px;background:#444;border-radius:2px;overflow:hidden}
+  .fill {height:100%;width:0;background:#fff}
+  #caption {
+    position:fixed;left:0;right:0;bottom:0;padding:16px;color:#fff;
+    background:linear-gradient(0deg,rgba(0,0,0,.7),rgba(0,0,0,0));
+    font:500 14px/1.4 system-ui
+  }
+</style>
+
+<div id="stage">
+  <video id="v" playsinline muted preload="auto" x-webkit-airplay="deny"></video>
+</div>
+
+<div id="hud" aria-hidden="true">
+  <div class="bar"><div class="fill" id="p0"></div></div>
+  <div class="bar"><div class="fill" id="p1"></div></div>
+  <div class="bar"><div class="fill" id="p2"></div></div>
+  <div class="bar"><div class="fill" id="p3"></div></div>
+  <div class="bar"><div class="fill" id="p4"></div></div>
+</div>
+
+<div id="caption" role="status" aria-live="polite"></div>
+
+<div id="start">Tap to begin</div>
+
+<script>
+  // Config
+  const CUT = 27_000; // 27 seconds per story
+  const clips = [
+    {src:"https://drive.google.com/uc?export=download&id=1vr1YqaE90TqF5E6FvwhA6aROcfMHfdqQ", caption:"Rewrite"},
+    {src:"https://drive.google.com/uc?export=download&id=108td2koZk6wADurnsqCa6kVGWW3iCuwj", caption:"Loud Thoughts"},
+    {src:"https://drive.google.com/uc?export=download&id=1BmAEIDTinv5GapQxND8FC_vgxiq9zcby", caption:"The Cheapest Apocalypse"},
+    {src:"https://drive.google.com/uc?export=download&id=1lVPlswS2GQh-UA3VwZAVY1INv_cpoJZp", caption:"Swap"},
+    {src:"https://drive.google.com/uc?export=download&id=1s2aihXJWmsiQJHjrKRpcKTQNAae5Wy40", caption:"Chapter 13"},
+  ];
+
+  const v = document.getElementById('v');
+  const start = document.getElementById('start');
+  const caption = document.getElementById('caption');
+  const bars = [...document.querySelectorAll('.fill')];
+
+  let i = 0, tStart = 0, rafId = null, timer = null;
+
+  // Prevent scroll or zoom
+  const block = e => e.preventDefault();
+  ['touchmove','wheel','gesturestart'].forEach(evt=>{
+    window.addEventListener(evt, block, {passive:false});
+  });
+
+  function setClip(idx){
+    i = idx % clips.length;
+    v.classList.remove('slide');
+    v.src = clips[i].src;
+    v.load();
+    v.onloadeddata = ()=>{
+      v.classList.add('slide');
+      v.currentTime = 0;
+      v.play().catch(()=>{});
+      tStart = performance.now();
+      updateBars();
+      caption.textContent = clips[i].caption;
+      clearTimeout(timer);
+      timer = setTimeout(nextClip, CUT);
+    };
+  }
+
+  function nextClip(){
+    // hard cut, mid sentence
+    setClip(i+1);
+  }
+
+  function updateBars(){
+    cancelAnimationFrame(rafId);
+    const tick = () => {
+      const elapsed = performance.now() - tStart;
+      bars.forEach((b,idx)=>{
+        let p = 0;
+        if(idx < i) p = 100;
+        else if(idx === i) p = Math.min(100, (elapsed / CUT) * 100);
+        else p = 0;
+        b.style.width = p + '%';
+      });
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+  }
+
+  // Keep playing if user returns to tab
+  document.addEventListener('visibilitychange', ()=>{
+    if(!document.hidden) v.play().catch(()=>{});
+  });
+
+  // Start on first tap or click
+  start.addEventListener('click', ()=>{
+    start.style.display = 'none';
+    setClip(0);
+  });
+</script>
+</html>
