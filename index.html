@@ -9,20 +9,35 @@
   video{width:100%;height:100%;object-fit:cover}
   .slide{animation:slideIn 320ms ease}
   @keyframes slideIn{from{transform:translateY(100%)}to{transform:translateY(0)}}
-  #start {
+
+  #start{
     position:fixed;inset:0;display:grid;place-items:center;
-    background:#000; color:#fff; font:600 18px system-ui; letter-spacing:.2px;
-    cursor:pointer
+    background:#000;color:#fff;font:600 18px system-ui;letter-spacing:.2px;cursor:pointer
   }
-  #hud {
-    position:fixed;left:12px;right:12px;top:12px;display:flex;gap:6px;z-index:2
+
+  /* Feed-style UI */
+  #ui{
+    position:fixed;right:12px;bottom:88px;display:flex;flex-direction:column;gap:16px;
+    z-index:3
   }
-  .bar {flex:1;height:3px;background:#444;border-radius:2px;overflow:hidden}
-  .fill {height:100%;width:0;background:#fff}
-  #caption {
-    position:fixed;left:0;right:0;bottom:0;padding:16px;color:#fff;
-    background:linear-gradient(0deg,rgba(0,0,0,.7),rgba(0,0,0,0));
+  .btn{
+    width:52px;height:52px;border-radius:999px;display:grid;place-items:center;
+    background:rgba(0,0,0,.35);backdrop-filter:blur(2px);cursor:pointer
+  }
+  .btn svg{width:26px;height:26px;fill:#fff;transition:fill 0.2s ease}
+  .btn.liked svg{fill:#ff3b30}
+  .count{
+    color:#fff;text-align:center;font:600 12px/1 system-ui;margin-top:2px;opacity:.9
+  }
+
+  #caption{
+    position:fixed;left:0;right:0;bottom:0;padding:16px;color:#fff;z-index:2;
+    background:linear-gradient(0deg,rgba(0,0,0,.72),rgba(0,0,0,0));
     font:500 14px/1.4 system-ui
+  }
+  #meta{
+    position:fixed;left:12px;bottom:108px;color:#fff;z-index:2;
+    font:600 13px/1 system-ui;opacity:.95;text-shadow:0 1px 2px rgba(0,0,0,.5)
   }
 </style>
 
@@ -30,42 +45,56 @@
   <video id="v" playsinline muted preload="auto" x-webkit-airplay="deny"></video>
 </div>
 
-<div id="hud" aria-hidden="true">
-  <div class="bar"><div class="fill" id="p0"></div></div>
-  <div class="bar"><div class="fill" id="p1"></div></div>
-  <div class="bar"><div class="fill" id="p2"></div></div>
-  <div class="bar"><div class="fill" id="p3"></div></div>
-  <div class="bar"><div class="fill" id="p4"></div></div>
+<!-- UI -->
+<div id="ui">
+  <div class="btn" id="likeBtn">
+    <!-- heart -->
+    <svg viewBox="0 0 24 24"><path d="M12 21s-7.2-4.35-9.33-8.19C1.25 10.83 2.2 7.5 5.4 6.6c2.02-.58 3.73.32 4.6 1.63.87-1.31 2.58-2.21 4.6-1.63 3.2.9 4.15 4.23 2.73 6.21C19.2 16.65 12 21 12 21z"/></svg>
+  </div>
+  <div class="count" id="likeCount"> </div>
+
+  <div class="btn">
+    <!-- comment -->
+    <svg viewBox="0 0 24 24"><path d="M21 6.5a3.5 3.5 0 0 0-3.5-3.5h-11A3.5 3.5 0 0 0 3 6.5v6A3.5 3.5 0 0 0 6.5 16H8v3l3-3h6.5A3.5 3.5 0 0 0 21 12.5v-6z"/></svg>
+  </div>
+  <div class="count"> </div>
+
+  <div class="btn">
+    <!-- share -->
+    <svg viewBox="0 0 24 24"><path d="M18 8a3 3 0 1 0-2.82-4H15a3 3 0 0 0 .18 1.02L7.91 9.2A3 3 0 0 0 6 8.5a3 3 0 1 0 1.95 5.25l7.18 4.15A3 3 0 1 0 16 20a3 3 0 0 0-.18-1.02l-7.18-4.15A3 3 0 0 0 9 12.5c0-.22-.02-.44-.07-.64l7.16-4.13c.26.17.56.28.88.34A3 3 0 0 0 18 8z"/></svg>
+  </div>
+  <div class="count"> </div>
 </div>
 
+<div id="meta">@autoplay.next</div>
 <div id="caption" role="status" aria-live="polite"></div>
 
 <div id="start">Tap to begin</div>
 
 <script>
-  // Config
-  const CUT = 27_000; // 27 seconds per story
- const clips = [
-  {src:"https://dl.dropboxusercontent.com/scl/fi/ci3jsb6eor610xxgnkk14/01-rewrite.mp4.mp4?rlkey=2hodyoqum98fkz5a7txafcbt0&st=zxc2h67u", caption:"Rewrite"},
-  {src:"https://dl.dropboxusercontent.com/scl/fi/tbrm6pgpbnl3d7xlka603/02-loud-thoughts.mp4.mp4?rlkey=fse205d4h2gktepzvxyz6zqis&st=5mh9rfqu", caption:"Loud Thoughts"},
-  {src:"https://dl.dropboxusercontent.com/scl/fi/4vteqjcawowjz5d10h9m1/03-cheapest-apocalypse.mp4.mp4?rlkey=pwvavyfzuczwdtdnq7oz0unql&st=73pv0v5e", caption:"The Cheapest Apocalypse"},
-  {src:"https://dl.dropboxusercontent.com/scl/fi/dvzq0iwf9ghqjxl15bnkp/04-swap.mp4.mp4?rlkey=n5qnk364v9noz3odtk89z0uu4&st=rzyghn3b", caption:"Swap"},
-  {src:"https://dl.dropboxusercontent.com/scl/fi/gx0hb5ds6lhr7w80n07yl/05-chapter-13.mp4.mp4?rlkey=60mqoii3qgzmbhw1ftm615g8q&st=n7wp4drl", caption:"Chapter 13"},
-];
+  const CUT = 27_000;
+  const clips = [
+    {src:"https://dl.dropboxusercontent.com/scl/fi/ci3jsb6eor610xxgnkk14/01-rewrite.mp4.mp4?rlkey=2hodyoqum98fkz5a7txafcbt0&st=zxc2h67u", caption:"Rewrite"},
+    {src:"https://dl.dropboxusercontent.com/scl/fi/tbrm6pgpbnl3d7xlka603/02-loud-thoughts.mp4.mp4?rlkey=fse205d4h2gktepzvxyz6zqis&st=5mh9rfqu", caption:"Loud Thoughts"},
+    {src:"https://dl.dropboxusercontent.com/scl/fi/4vteqjcawowjz5d10h9m1/03-cheapest-apocalypse.mp4.mp4?rlkey=pwvavyfzuczwdtdnq7oz0unql&st=73pv0v5e", caption:"The Cheapest Apocalypse"},
+    {src:"https://dl.dropboxusercontent.com/scl/fi/dvzq0iwf9ghqjxl15bnkp/04-swap.mp4.mp4?rlkey=n5qnk364v9noz3odtk89z0uu4&st=rzyghn3b", caption:"Swap"},
+    {src:"https://dl.dropboxusercontent.com/scl/fi/gx0hb5ds6lhr7w80n07yl/05-chapter-13.mp4.mp4?rlkey=60mqoii3qgzmbhw1ftm615g8q&st=n7wp4drl", caption:"Chapter 13"},
+  ];
 
   const v = document.getElementById('v');
   const start = document.getElementById('start');
   const caption = document.getElementById('caption');
-  const bars = [...document.querySelectorAll('.fill')];
+  const likeBtn = document.getElementById('likeBtn');
 
-  let i = 0, tStart = 0, rafId = null, timer = null;
+  let i = 0, timer = null;
 
-  // Prevent scroll or zoom
+  // prevent scroll
   const block = e => e.preventDefault();
   ['touchmove','wheel','gesturestart'].forEach(evt=>{
     window.addEventListener(evt, block, {passive:false});
   });
 
+  // video flow
   function setClip(idx){
     i = idx % clips.length;
     v.classList.remove('slide');
@@ -75,45 +104,25 @@
       v.classList.add('slide');
       v.currentTime = 0;
       v.play().catch(()=>{});
-      tStart = performance.now();
-      updateBars();
       caption.textContent = clips[i].caption;
       clearTimeout(timer);
       timer = setTimeout(nextClip, CUT);
     };
   }
+  function nextClip(){ setClip(i+1); }
 
-  function nextClip(){
-    // hard cut, mid sentence
-    setClip(i+1);
-  }
-
-  function updateBars(){
-    cancelAnimationFrame(rafId);
-    const tick = () => {
-      const elapsed = performance.now() - tStart;
-      bars.forEach((b,idx)=>{
-        let p = 0;
-        if(idx < i) p = 100;
-        else if(idx === i) p = Math.min(100, (elapsed / CUT) * 100);
-        else p = 0;
-        b.style.width = p + '%';
-      });
-      rafId = requestAnimationFrame(tick);
-    };
-    rafId = requestAnimationFrame(tick);
-  }
-
-  // Keep playing if user returns to tab
   document.addEventListener('visibilitychange', ()=>{
     if(!document.hidden) v.play().catch(()=>{});
   });
 
-  // Start on first tap or click
   start.addEventListener('click', ()=>{
-    start.style.display = 'none';
+    start.style.display='none';
     setClip(0);
+  });
+
+  // like toggle
+  likeBtn.addEventListener('click', ()=>{
+    likeBtn.classList.toggle('liked');
   });
 </script>
 </html>
-
