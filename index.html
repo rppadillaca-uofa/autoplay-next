@@ -16,7 +16,7 @@
   }
 
   #ui{
-    position:fixed;right:12px;bottom:88px;display:flex;flex-direction:column;gap:16px;
+    position:fixed;right:12px;bottom:88px;display:flex;flex-direction:column;gap:12px;
     z-index:3
   }
   .btn{
@@ -28,6 +28,10 @@
   .btn.liked{animation:pop .25s ease}
   @keyframes pop{0%{transform:scale(1)}50%{transform:scale(1.3)}100%{transform:scale(1)}}
 
+  .count{
+    color:#fff;text-align:center;font:600 12px/1 system-ui;opacity:.95;text-shadow:0 1px 2px rgba(0,0,0,.5)
+  }
+
   #caption{
     position:fixed;left:0;right:0;bottom:0;padding:16px;color:#fff;z-index:2;
     background:linear-gradient(0deg,rgba(0,0,0,.72),rgba(0,0,0,0));
@@ -37,7 +41,7 @@
   #end{
     position:fixed;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.85);
     color:#fff;font:700 22px/1.3 system-ui;letter-spacing:.3px;text-align:center;
-    opacity:0;pointer-events:none;z-index:4;transition:opacity .35s ease
+    opacity:0;pointer-events:none;z-index:4;transition:opacity 2s ease
   }
   #end.show{opacity:1}
 </style>
@@ -46,18 +50,27 @@
   <video id="v" playsinline preload="auto" x-webkit-airplay="deny"></video>
 </div>
 
+<!-- Right side UI -->
 <div id="ui">
-  <div class="btn" id="likeBtn" title="Like">
+  <!-- Like -->
+  <div class="btn" id="likeBtn" title="Like" aria-label="Like">
     <svg viewBox="0 0 48 48" aria-hidden="true">
       <path d="M34.6 6c-4.2 0-7.9 2.1-10.6 5.4C21.3 8.1 17.6 6 13.4 6 7.6 6 3 10.6 3 16.4c0 11.1 19 22.5 19 22.5s19-11.4 19-22.5C41 10.6 36.4 6 30.6 6z"/>
     </svg>
   </div>
-  <div class="btn" aria-hidden="true" title="Comments">
+  <div class="count" id="likeCount"></div>
+
+  <!-- Comments (decorative) -->
+  <div class="btn" id="commentBtn" aria-hidden="true" title="Comments">
     <svg viewBox="0 0 24 24"><path d="M21 6.5a3.5 3.5 0 0 0-3.5-3.5h-11A3.5 3.5 0 0 0 3 6.5v6A3.5 3.5 0 0 0 6.5 16H8v3l3-3h6.5A3.5 3.5 0 0 0 21 12.5v-6z"/></svg>
   </div>
-  <div class="btn" aria-hidden="true" title="Share">
+  <div class="count" id="commentCount"></div>
+
+  <!-- Share (decorative) -->
+  <div class="btn" id="shareBtn" aria-hidden="true" title="Share">
     <svg viewBox="0 0 24 24"><path d="M18 8a3 3 0 1 0-2.82-4H15a3 3 0 0 0 .18 1.02L7.91 9.2A3 3 0 0 0 6 8.5a3 3 0 1 0 1.95 5.25l7.18 4.15A3 3 0 1 0 16 20a3 3 0 0 0-.18-1.02l-7.18-4.15A3 3 0 0 0 9 12.5c0-.22-.02-.44-.07-.64l7.16-4.13c.26.17.56.28.88.34A3 3 0 0 0 18 8z"/></svg>
   </div>
+  <div class="count" id="shareCount"></div>
 </div>
 
 <div id="caption" role="status" aria-live="polite"></div>
@@ -66,23 +79,39 @@
 
 <script>
   const CUT = 27_000;
+
+  // Helper for pretty numbers like 12.4K
+  const fmt = n => {
+    if (n < 1000) return String(n);
+    if (n < 1_000_000) return (Math.round(n/100)/10).toFixed(1).replace(/\.0$/,'') + 'K';
+    return (Math.round(n/100_000)/10).toFixed(1).replace(/\.0$/,'') + 'M';
+  };
+
+  // Set your starting counts here
   const clips = [
-    {src:"https://dl.dropboxusercontent.com/scl/fi/ci3jsb6eor610xxgnkk14/01-rewrite.mp4.mp4?rlkey=2hodyoqum98fkz5a7txafcbt0&st=zxc2h67u", caption:"Rewrite"},
-    {src:"https://dl.dropboxusercontent.com/scl/fi/tbrm6pgpbnl3d7xlka603/02-loud-thoughts.mp4.mp4?rlkey=fse205d4h2gktepzvxyz6zqis&st=5mh9rfqu", caption:"Loud Thoughts"},
-    {src:"https://dl.dropboxusercontent.com/scl/fi/4vteqjcawowjz5d10h9m1/03-cheapest-apocalypse.mp4.mp4?rlkey=pwvavyfzuczwdtdnq7oz0unql&st=73pv0v5e", caption:"The Cheapest Apocalypse"},
-    {src:"https://dl.dropboxusercontent.com/scl/fi/dvzq0iwf9ghqjxl15bnkp/04-swap.mp4.mp4?rlkey=n5qnk364v9noz3odtk89z0uu4&st=rzyghn3b", caption:"Swap"},
-    {src:"https://dl.dropboxusercontent.com/scl/fi/gx0hb5ds6lhr7w80n07yl/05-chapter-13.mp4.mp4?rlkey=60mqoii3qgzmbhw1ftm615g8q&st=n7wp4drl", caption:"Chapter 13"},
+    {src:"https://dl.dropboxusercontent.com/scl/fi/ci3jsb6eor610xxgnkk14/01-rewrite.mp4.mp4?rlkey=2hodyoqum98fkz5a7txafcbt0&st=zxc2h67u", caption:"Rewrite", likes: 12400, comments: 312},
+    {src:"https://dl.dropboxusercontent.com/scl/fi/tbrm6pgpbnl3d7xlka603/02-loud-thoughts.mp4.mp4?rlkey=fse205d4h2gktepzvxyz6zqis&st=5mh9rfqu", caption:"Loud Thoughts", likes: 9800, comments: 201},
+    {src:"https://dl.dropboxusercontent.com/scl/fi/4vteqjcawowjz5d10h9m1/03-cheapest-apocalypse.mp4.mp4?rlkey=pwvavyfzuczwdtdnq7oz0unql&st=73pv0v5e", caption:"The Cheapest Apocalypse", likes: 15300, comments: 455},
+    {src:"https://dl.dropboxusercontent.com/scl/fi/dvzq0iwf9ghqjxl15bnkp/04-swap.mp4.mp4?rlkey=n5qnk364v9noz3odtk89z0uu4&st=rzyghn3b", caption:"Swap", likes: 7200, comments: 129},
+    {src:"https://dl.dropboxusercontent.com/scl/fi/gx0hb5ds6lhr7w80n07yl/05-chapter-13.mp4.mp4?rlkey=60mqoii3qgzmbhw1ftm615g8q&st=n7wp4drl", caption:"Chapter 13", likes: 20400, comments: 612},
   ];
 
   const v = document.getElementById('v');
   const start = document.getElementById('start');
   const caption = document.getElementById('caption');
   const likeBtn = document.getElementById('likeBtn');
+  const likeCountEl = document.getElementById('likeCount');
+  const commentCountEl = document.getElementById('commentCount');
+  const shareCountEl = document.getElementById('shareCount');
   const endScreen = document.getElementById('end');
   const ui = document.getElementById('ui');
 
   let i = 0, timer = null, finished = false;
 
+  // Track likes per clip for this viewing session
+  const liked = new Array(clips.length).fill(false);
+
+  // Prevent scroll and zoom
   const block = e => e.preventDefault();
   ['touchmove','wheel','gesturestart'].forEach(evt=>{
     window.addEventListener(evt, block, {passive:false});
@@ -95,6 +124,15 @@
     ui.style.pointerEvents = 'none';
     endScreen.classList.add('show');
     caption.textContent = '';
+  }
+
+  function updateCounts(){
+    const baseLikes = clips[i].likes;
+    const baseComments = clips[i].comments;
+    likeCountEl.textContent = fmt(baseLikes + (liked[i] ? 1 : 0));
+    commentCountEl.textContent = fmt(baseComments);
+    shareCountEl.textContent = ''; // empty on purpose, decorative only
+    likeBtn.classList.toggle('liked', liked[i]);
   }
 
   function setClip(idx){
@@ -110,6 +148,7 @@
       v.volume = 1;
       v.play().catch(()=>{});
       caption.textContent = clips[i].caption;
+      updateCounts();
       clearTimeout(timer);
       if (i === clips.length - 1) {
         timer = setTimeout(showEnd, CUT);
@@ -136,7 +175,9 @@
 
   likeBtn.addEventListener('click', ()=>{
     if (finished) return;
-    likeBtn.classList.toggle('liked');
+    liked[i] = !liked[i];
+    likeBtn.classList.toggle('liked', liked[i]);
+    updateCounts();
   });
 </script>
 </html>
