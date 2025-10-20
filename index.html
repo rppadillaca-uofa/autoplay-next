@@ -24,7 +24,7 @@
     width:52px;height:52px;border-radius:999px;display:grid;place-items:center;
     background:rgba(0,0,0,.35);backdrop-filter:blur(2px);cursor:pointer
   }
-  .btn svg{width:26px;height:26px;fill:#fff;transition:fill 0.2s ease}
+  .btn svg{width:26px;height:26px;fill:#fff;transition:fill .2s ease}
   .btn.liked svg{fill:#ff3b30}
   .count{
     color:#fff;text-align:center;font:600 12px/1 system-ui;margin-top:2px;opacity:.9
@@ -42,29 +42,31 @@
 </style>
 
 <div id="stage">
-  <video id="v" playsinline muted preload="auto" x-webkit-airplay="deny"></video>
+  <!-- unmuted by default, audio will start after user tap -->
+  <video id="v" playsinline preload="auto" x-webkit-airplay="deny"></video>
 </div>
 
 <!-- UI -->
 <div id="ui">
   <div class="btn" id="likeBtn">
-  <!-- heart -->
-  <svg viewBox="0 0 48 48">
-    <path d="M34.6 6c-4.2 0-7.9 2.1-10.6 5.4C21.3 8.1 17.6 6 13.4 6 7.6 6 3 10.6 3 16.4c0 11.1 19 22.5 19 22.5s19-11.4 19-22.5C41 10.6 36.4 6 30.6 6z"/>
-  </svg>
-</div>
+    <!-- heart -->
+    <svg viewBox="0 0 48 48" aria-hidden="true">
+      <path d="M34.6 6c-4.2 0-7.9 2.1-10.6 5.4C21.3 8.1 17.6 6 13.4 6 7.6 6 3 10.6 3 16.4c0 11.1 19 22.5 19 22.5s19-11.4 19-22.5C41 10.6 36.4 6 30.6 6z"/>
+    </svg>
+  </div>
+  <div class="count" id="likeCount"> </div>
 
-  <div class="btn">
+  <div class="btn" aria-hidden="true">
     <!-- comment -->
     <svg viewBox="0 0 24 24"><path d="M21 6.5a3.5 3.5 0 0 0-3.5-3.5h-11A3.5 3.5 0 0 0 3 6.5v6A3.5 3.5 0 0 0 6.5 16H8v3l3-3h6.5A3.5 3.5 0 0 0 21 12.5v-6z"/></svg>
   </div>
-  <div class="count"> </div>
+  <div class="count" aria-hidden="true"> </div>
 
-  <div class="btn">
+  <div class="btn" aria-hidden="true">
     <!-- share -->
     <svg viewBox="0 0 24 24"><path d="M18 8a3 3 0 1 0-2.82-4H15a3 3 0 0 0 .18 1.02L7.91 9.2A3 3 0 0 0 6 8.5a3 3 0 1 0 1.95 5.25l7.18 4.15A3 3 0 1 0 16 20a3 3 0 0 0-.18-1.02l-7.18-4.15A3 3 0 0 0 9 12.5c0-.22-.02-.44-.07-.64l7.16-4.13c.26.17.56.28.88.34A3 3 0 0 0 18 8z"/></svg>
   </div>
-  <div class="count"> </div>
+  <div class="count" aria-hidden="true"> </div>
 </div>
 
 <div id="meta">@autoplay.next</div>
@@ -95,7 +97,7 @@
     window.addEventListener(evt, block, {passive:false});
   });
 
-  // video flow
+  // load and play a clip
   function setClip(idx){
     i = idx % clips.length;
     v.classList.remove('slide');
@@ -104,20 +106,31 @@
     v.onloadeddata = ()=>{
       v.classList.add('slide');
       v.currentTime = 0;
+      v.muted = false;      // keep audio on after first gesture
+      v.volume = 1;
       v.play().catch(()=>{});
       caption.textContent = clips[i].caption;
       clearTimeout(timer);
       timer = setTimeout(nextClip, CUT);
     };
   }
+
   function nextClip(){ setClip(i+1); }
 
+  // resume if user returns to tab
   document.addEventListener('visibilitychange', ()=>{
-    if(!document.hidden) v.play().catch(()=>{});
+    if(!document.hidden){
+      v.muted = false;
+      v.volume = 1;
+      v.play().catch(()=>{});
+    }
   });
 
+  // start after a user gesture to allow audio
   start.addEventListener('click', ()=>{
     start.style.display='none';
+    v.muted = false;
+    v.volume = 1;
     setClip(0);
   });
 
@@ -127,4 +140,3 @@
   });
 </script>
 </html>
-
