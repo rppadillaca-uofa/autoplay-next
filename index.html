@@ -24,11 +24,10 @@
     width:52px;height:52px;border-radius:999px;display:grid;place-items:center;
     background:rgba(0,0,0,.35);backdrop-filter:blur(2px);cursor:pointer
   }
-  .btn svg{width:26px;height:26px;fill:#fff;transition:fill .2s ease}
+  .btn svg{width:26px;height:26px;fill:#fff;transition:fill .2s ease, transform .25s ease}
   .btn.liked svg{fill:#ff3b30}
-  .count{
-    color:#fff;text-align:center;font:600 12px/1 system-ui;margin-top:2px;opacity:.9
-  }
+  .btn.liked{animation:pop .25s ease}
+  @keyframes pop{0%{transform:scale(1)}50%{transform:scale(1.3)}100%{transform:scale(1)}}
 
   #caption{
     position:fixed;left:0;right:0;bottom:0;padding:16px;color:#fff;z-index:2;
@@ -39,40 +38,44 @@
     position:fixed;left:12px;bottom:108px;color:#fff;z-index:2;
     font:600 13px/1 system-ui;opacity:.95;text-shadow:0 1px 2px rgba(0,0,0,.5)
   }
+
+  /* End screen */
+  #end{
+    position:fixed;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.85);
+    color:#fff;font:700 22px/1.3 system-ui;letter-spacing:.3px;text-align:center;
+    opacity:0;pointer-events:none;z-index:4;transition:opacity .35s ease
+  }
+  #end.show{opacity:1}
 </style>
 
 <div id="stage">
-  <!-- unmuted by default, audio will start after user tap -->
   <video id="v" playsinline preload="auto" x-webkit-airplay="deny"></video>
 </div>
 
 <!-- UI -->
 <div id="ui">
-  <div class="btn" id="likeBtn">
-    <!-- heart -->
+  <div class="btn" id="likeBtn" title="Like">
     <svg viewBox="0 0 48 48" aria-hidden="true">
       <path d="M34.6 6c-4.2 0-7.9 2.1-10.6 5.4C21.3 8.1 17.6 6 13.4 6 7.6 6 3 10.6 3 16.4c0 11.1 19 22.5 19 22.5s19-11.4 19-22.5C41 10.6 36.4 6 30.6 6z"/>
     </svg>
   </div>
-  <div class="count" id="likeCount"> </div>
 
-  <div class="btn" aria-hidden="true">
-    <!-- comment -->
+  <div class="btn" aria-hidden="true" title="Comments">
     <svg viewBox="0 0 24 24"><path d="M21 6.5a3.5 3.5 0 0 0-3.5-3.5h-11A3.5 3.5 0 0 0 3 6.5v6A3.5 3.5 0 0 0 6.5 16H8v3l3-3h6.5A3.5 3.5 0 0 0 21 12.5v-6z"/></svg>
   </div>
-  <div class="count" aria-hidden="true"> </div>
 
-  <div class="btn" aria-hidden="true">
-    <!-- share -->
+  <div class="btn" aria-hidden="true" title="Share">
     <svg viewBox="0 0 24 24"><path d="M18 8a3 3 0 1 0-2.82-4H15a3 3 0 0 0 .18 1.02L7.91 9.2A3 3 0 0 0 6 8.5a3 3 0 1 0 1.95 5.25l7.18 4.15A3 3 0 1 0 16 20a3 3 0 0 0-.18-1.02l-7.18-4.15A3 3 0 0 0 9 12.5c0-.22-.02-.44-.07-.64l7.16-4.13c.26.17.56.28.88.34A3 3 0 0 0 18 8z"/></svg>
   </div>
-  <div class="count" aria-hidden="true"> </div>
 </div>
 
 <div id="meta">@autoplay.next</div>
 <div id="caption" role="status" aria-live="polite"></div>
 
 <div id="start">Tap to begin</div>
+
+<!-- End screen -->
+<div id="end">put the phone down, it is over</div>
 
 <script>
   const CUT = 27_000;
@@ -88,8 +91,10 @@
   const start = document.getElementById('start');
   const caption = document.getElementById('caption');
   const likeBtn = document.getElementById('likeBtn');
+  const endScreen = document.getElementById('end');
+  const ui = document.getElementById('ui');
 
-  let i = 0, timer = null;
+  let i = 0, timer = null, finished = false;
 
   // prevent scroll
   const block = e => e.preventDefault();
@@ -97,8 +102,18 @@
     window.addEventListener(evt, block, {passive:false});
   });
 
+  function showEnd(){
+    finished = true;
+    clearTimeout(timer);
+    try { v.pause(); } catch(e){}
+    ui.style.pointerEvents = 'none';
+    endScreen.classList.add('show');
+    caption.textContent = '';
+  }
+
   // load and play a clip
   function setClip(idx){
+    if (finished) return;
     i = idx % clips.length;
     v.classList.remove('slide');
     v.src = clips[i].src;
@@ -106,20 +121,28 @@
     v.onloadeddata = ()=>{
       v.classList.add('slide');
       v.currentTime = 0;
-      v.muted = false;      // keep audio on after first gesture
+      v.muted = false;
       v.volume = 1;
       v.play().catch(()=>{});
       caption.textContent = clips[i].caption;
       clearTimeout(timer);
-      timer = setTimeout(nextClip, CUT);
+      // if this is the last clip, end instead of looping
+      if (i === clips.length - 1) {
+        timer = setTimeout(showEnd, CUT);
+      } else {
+        timer = setTimeout(nextClip, CUT);
+      }
     };
   }
 
-  function nextClip(){ setClip(i+1); }
+  function nextClip(){
+    if (finished) return;
+    setClip(i+1);
+  }
 
   // resume if user returns to tab
   document.addEventListener('visibilitychange', ()=>{
-    if(!document.hidden){
+    if(!document.hidden && !finished){
       v.muted = false;
       v.volume = 1;
       v.play().catch(()=>{});
@@ -136,6 +159,7 @@
 
   // like toggle
   likeBtn.addEventListener('click', ()=>{
+    if (finished) return;
     likeBtn.classList.toggle('liked');
   });
 </script>
